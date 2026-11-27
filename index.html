@@ -231,6 +231,7 @@ function tick(){
   $("#date").textContent = n.toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
   checkAlarms(n);
   if(n.getSeconds() % 5 === 0) updateNext(n);
+  if(NATIVE && ringing && uiOnly && ++pollN % 3 === 0) JA.getActive().then(r => { if(!r.active && ringing && uiOnly && Date.now() - ringStart > 5000) stopRing(); }).catch(() => {});
   if(ringing && Date.now() - ringStart > S.settings.max * 60000){ stopRing(); toast("Alarme arrêtée automatiquement."); }
 }
 function updateNext(n = new Date()){
@@ -280,6 +281,7 @@ function currentMessage(){
 }
 function startRing(a){
   ringing = a; ringCount = 0; ringStart = Date.now();
+  uiOnly = NATIVE && !window.__test; window.__test = false;
   const angry = S.settings.angry || a.a;
   $("#ring").classList.add("on"); $("#ring").classList.toggle("angry", angry);
   const n = new Date();
@@ -294,6 +296,7 @@ function startRing(a){
 }
 function cycle(){
   if(!ringing) return;
+  if(uiOnly){ $("#ringMsg").textContent = currentMessage(); ringCount++; return; }
   const msg = currentMessage();
   $("#ringMsg").textContent = msg;
   if(S.settings.beep) beep(ringing.a || S.settings.angry);
@@ -307,6 +310,7 @@ function stopRing(){
   if("speechSynthesis" in window) speechSynthesis.cancel();
   if(navigator.vibrate) navigator.vibrate(0);
   if(NATIVE && TTS) TTS.stop().catch(() => {});
+  if(NATIVE && JA) JA.stop().catch(() => {});
 }
 function snooze(){
   if(!ringing) return;
@@ -424,7 +428,7 @@ $("#rows").addEventListener("click", e => {
   const b = e.target.closest("button[data-act]"); if(!b) return;
   const id = b.closest("tr").dataset.id, a = S.alarms.find(x => x.id === id);
   if(b.dataset.act === "del"){ S.alarms = S.alarms.filter(x => x.id !== id); save(); render(); toast("Alarme supprimée."); }
-  if(b.dataset.act === "test"){ unlockAudio(); if(!ringing) startRing(a); }
+  if(b.dataset.act === "test"){ unlockAudio(); if(!ringing){ window.__test = true; startRing(a); } }
 });
 $("#btnAdd").onclick = () => {
   const n = new Date(Date.now() + 60000);
@@ -472,47 +476,38 @@ function initSettingsValues(){ binds.forEach(([id, k, t]) => { const el = $("#" 
 $("#btnAudio").onclick = () => { unlockAudio(); beep(false); setTimeout(() => { if(!speak("Audio activé. Test de la voix.")) toast("Synthèse vocale indisponible : seule la sonnerie fonctionnera."); }, 1500); };
 $("#btnStop").onclick = stopRing;
 $("#btnSnooze").onclick = snooze;
-$("#btnRepeat").onclick = () => { if(ringing){ cycle(); clearInterval(repTimer); repTimer = setInterval(cycle, Math.max(3, S.settings.repeat) * 1000); } };
+$("#btnRepeat").onclick = () => { if(ringing){ if(NATIVE && uiOnly) JA.repeat().catch(() => {}); cycle(); clearInterval(repTimer); repTimer = setInterval(cycle, Math.max(3, S.settings.repeat) * 1000); } };
 document.addEventListener("pointerdown", () => { if(!audioOK) unlockAudio(); }, {once:true});
 document.addEventListener("keydown", e => { if(!ringing) return; if(e.key === "Escape") stopRing(); });
 
-/* ---------- Couche native Android (Capacitor) ---------- */
+/* ---------- Couche native Android (Capacitor) : voix automatique ---------- */
 const CAP = window.Capacitor;
 const NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
 const LN = NATIVE ? CAP.Plugins.LocalNotifications : null;
 const TTS = NATIVE ? CAP.Plugins.TextToSpeech : null;
-const snoozeIds = new Set();
-let syncTimer = null, exactAsked = false;
-const nid = s => { let h = 7; for(const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 2000000000; return h || 1; };
-const bodyOf = a => a.m.replace(/\{heure\}/g, a.t.replace(":", " h ")).replace(/\{nom\}/g, S.settings.name || "");
+const JA = NATIVE ? CAP.Plugins.JarvisAlarm : null;
+let syncTimer = null, uiOnly = false, pollN = 0;
 
 function syncNativeSoon(){ if(!NATIVE) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncNative, 800); }
 async function syncNative(){
   try{
     let p = await LN.checkPermissions();
     if(p.display !== "granted") p = await LN.requestPermissions();
-    if(p.display !== "granted"){ toast("Notifications refusées : les alarmes ne sonneront pas en arrière-plan."); return; }
-    await LN.createChannel({id:"jarvis-alarm", name:"Alarmes JARVIS", description:"Réveil et rappels", importance:5, visibility:1, vibration:true, lights:true});
-    if(!exactAsked){
-      exactAsked = true;
-      try{ const ex = await LN.checkExactNotificationSetting(); if(ex.exact_alarm !== "granted"){ toast("Autorisez « Alarmes et rappels » pour JARVIS."); await LN.changeExactNotificationSetting(); } }catch(e){}
-    }
-    const pend = await LN.getPending();
-    const old = pend.notifications.filter(n => !snoozeIds.has(n.id)).map(n => ({id:n.id}));
-    if(old.length) await LN.cancel({notifications: old});
-    const list = S.alarms.filter(a => a.on).map(a => {
-      const [h, m] = a.t.split(":").map(Number);
-      return {id:nid(a.id), title:"⏰ " + a.l, body:bodyOf(a), channelId:"jarvis-alarm", schedule:{on:{hour:h, minute:m}, allowWhileIdle:true}, extra:{aid:a.id}};
+    if(p.display !== "granted") toast("Autorisez les notifications pour la voix automatique.");
+    const st = S.settings, g = st.gender;
+    await JA.schedule({
+      alarms: S.alarms.map(a => { const [h, m] = a.t.split(":").map(Number); return {id:a.id, hour:h, minute:m, label:a.l, msg:a.m, angry:!!a.a, on:!!a.on}; }),
+      settings: {name:st.name, vol:st.vol, rate:st.rate, pitch: g === "male" ? .85 : g === "female" ? 1.15 : 1, repeat:st.repeat, max:st.max, beep:st.beep, angry:st.angry,
+                 angryMsgs: st.angryMsgs.split("\n").map(x => x.trim()).filter(Boolean)}
     });
-    if(list.length) await LN.schedule({notifications: list});
-  }catch(e){ console.warn(e); toast("Planification native impossible : " + (e.message || e)); }
+  }catch(e){ console.warn(e); toast("Programmation native impossible : " + (e.message || e)); }
 }
-async function nativeSnooze(a, min){
-  if(!NATIVE) return;
+function nativeSnooze(a, min){ if(NATIVE) JA.snooze({id:a.id, minutes:min}).catch(() => {}); }
+async function nativeResume(){
   try{
-    const id = nid("snooze" + Date.now()); snoozeIds.add(id);
-    await LN.schedule({notifications:[{id, title:"⏰ " + a.l + " (report)", body:bodyOf(a), channelId:"jarvis-alarm", schedule:{at:new Date(Date.now() + min * 60000), allowWhileIdle:true}, extra:{aid:a.id, snooze:true}}]});
-  }catch(e){ console.warn(e); }
+    const r = await JA.getActive();
+    if(r.active && !ringing){ const a = S.alarms.find(x => x.id === r.id); if(a) startRing(a); }
+  }catch(e){}
 }
 async function nativeLoadVoices(){
   try{
@@ -535,14 +530,9 @@ async function nativeSpeak(text){
 if(NATIVE){
   audioOK = true;
   $("#audioBanner").style.display = "none";
-  const open = ev => {
-    const n = (ev && ev.notification) || ev || {}, aid = n.extra && n.extra.aid;
-    const a = S.alarms.find(x => x.id === aid);
-    if(a && !ringing) startRing(a);
-  };
-  LN.addListener("localNotificationReceived", open);
-  LN.addListener("localNotificationActionPerformed", open);
   setTimeout(syncNative, 1200);
+  setTimeout(nativeResume, 600);
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") nativeResume(); });
 }
 
 /* ---------- Démarrage ---------- */
