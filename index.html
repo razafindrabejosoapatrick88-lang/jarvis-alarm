@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#06080b">
+<title>JARVIS ALARM – PATRICK EDITION</title>
+<style>
+:root{--bg:#06080b;--panel:#0d1218;--line:#1f2a33;--white:#f2f6f8;--dim:#8a9aa5;--red:#ff2d3d;--green:#19ff8a;--r:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--white);font-family:"Segoe UI",Roboto,system-ui,sans-serif;font-size:16px}
+body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);background:radial-gradient(ellipse at 50% -10%,#0e2a1d 0,transparent 55%),var(--bg)}
+.wrap{max-width:980px;margin:0 auto;padding:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 2px 14px}
+h1{font-size:1.05rem;letter-spacing:.18em;font-weight:700}
+h1 b{color:var(--red)}
+.by{color:var(--dim);font-size:.75rem}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.3}}
+.hero{position:relative;text-align:center;padding:26px 10px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.hero::before{content:"";position:absolute;inset:0;background:linear-gradient(transparent 50%,rgba(25,255,138,.05) 50%);background-size:100% 4px;pointer-events:none}
+#clock{font-family:"Courier New",monospace;font-weight:700;font-variant-numeric:tabular-nums;font-size:clamp(2.6rem,15vw,6.5rem);letter-spacing:.06em;color:var(--green);text-shadow:0 0 18px rgba(25,255,138,.55)}
+#clock .sec{color:var(--red);text-shadow:0 0 14px rgba(255,45,61,.6)}
+#clock .sep{animation:pulse 1s infinite}
+#date{margin-top:4px;color:var(--white);font-size:clamp(.9rem,3.6vw,1.2rem);text-transform:capitalize}
+#next{margin-top:10px;color:var(--dim);font-size:.85rem}
+.banner{margin:12px 0;padding:12px;border:1px solid var(--red);border-radius:var(--r);background:rgba(255,45,61,.08);display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;font-size:.9rem}
+.banner.ok{border-color:var(--green);background:rgba(25,255,138,.07)}
+section{margin-top:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:14px}
+h2{font-size:.95rem;letter-spacing:.08em;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+h2 span{color:var(--green)}
+button,input,select{font:inherit;color:var(--white)}
+button{min-height:44px;padding:0 16px;border-radius:8px;border:1px solid var(--line);background:#141c24;cursor:pointer;font-weight:600;touch-action:manipulation}
+button:hover{border-color:var(--green)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--white);outline-offset:2px}
+.btn-g{background:var(--green);color:#03150c;border-color:var(--green)}
+.btn-r{background:var(--red);color:#fff;border-color:var(--red)}
+.btn-s{min-height:38px;padding:0 10px;font-size:.85rem}
+input[type=text],input[type=time],input[type=number],select{width:100%;min-height:42px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:#0a0f14}
+input[type=range]{width:100%;accent-color:var(--green);height:30px}
+input[type=checkbox]{width:22px;height:22px;accent-color:var(--green)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:.82rem;color:var(--dim)}
+label.chk{display:flex;align-items:center;gap:10px;font-size:.92rem;color:var(--white);min-height:42px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:.75rem;color:var(--dim);font-weight:600;padding:6px}
+td{padding:6px;border-top:1px solid var(--line);vertical-align:middle}
+tr.off td{opacity:.45}
+tr.next td:first-child{box-shadow:inset 3px 0 var(--green)}
+.empty{color:var(--dim);padding:14px;text-align:center}
+@media(max-width:700px){
+ thead{display:none}
+ table,tbody,tr,td{display:block;width:100%}
+ tr{border:1px solid var(--line);border-radius:var(--r);padding:8px;margin-bottom:10px}
+ td{border:0;display:flex;gap:8px;align-items:center;justify-content:space-between}
+ td::before{content:attr(data-l);color:var(--dim);font-size:.78rem;min-width:70px}
+ td>input[type=text],td>input[type=time]{flex:1}
+}
+#ring{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:20px;text-align:center;background:rgba(6,8,11,.94)}
+#ring.on{display:flex}
+#ring.angry{background:rgba(40,0,4,.95)}
+.rings{position:relative;width:170px;height:170px;display:grid;place-items:center}
+.rings i{position:absolute;inset:0;border:3px solid var(--green);border-radius:50%;animation:ring 1.8s infinite}
+.rings i:nth-child(2){animation-delay:.6s}.rings i:nth-child(3){animation-delay:1.2s}
+#ring.angry .rings i{border-color:var(--red)}
+@keyframes ring{from{transform:scale(.3);opacity:1}to{transform:scale(1.6);opacity:0}}
+#ring .big{font-family:"Courier New",monospace;font-size:3.4rem;font-weight:700;color:var(--green);animation:shake .5s infinite}
+#ring.angry .big{color:var(--red)}
+@keyframes shake{25%{transform:rotate(-3deg)}75%{transform:rotate(3deg)}}
+#ringMsg{font-size:1.15rem;max-width:560px;line-height:1.4}
+#ringLbl{color:var(--dim)}
+.flash{position:absolute;inset:0;pointer-events:none;border:6px solid var(--red);animation:flash .8s infinite}
+@keyframes flash{50%{opacity:0}}
+#ring .row{justify-content:center;width:100%;max-width:520px}
+#ring .row button{flex:1;min-width:110px;min-height:54px;font-size:1rem}
+#toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--white);color:#05080a;padding:10px 16px;border-radius:8px;font-size:.9rem;z-index:60;display:none;max-width:90%}
+footer{text-align:center;color:var(--dim);font-size:.75rem;padding:18px 0 8px}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-iteration-count:1!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <header>
+  <div><h1>JARVIS ALARM – <b>PATRICK</b> EDITION</h1><div class="by">Créateur : Mario.S.</div></div>
+  <div class="dot" title="Système actif"></div>
+ </header>
+
+ <div class="hero">
+  <div id="clock" aria-live="off">00:00:00</div>
+  <div id="date"></div>
+  <div id="next"></div>
+ </div>
+
+ <div class="banner" id="audioBanner">
+  <span id="audioTxt">Le navigateur bloque le son tant que vous n'avez pas touché l'écran. Activez l'audio pour que le réveil puisse parler.</span>
+  <button class="btn-g" id="btnAudio">Activer l'audio</button>
+ </div>
+
+ <section>
+  <h2>TABLEAU DES ALARMES <span id="count"></span></h2>
+  <table>
+   <thead><tr><th>Actif</th><th>Heure</th><th>Libellé</th><th>Message vocal</th><th>Colère</th><th>Actions</th></tr></thead>
+   <tbody id="rows"></tbody>
+  </table>
+  <div class="row" style="margin-top:10px">
+   <button class="btn-g" id="btnAdd">+ Ajouter une alarme</button>
+   <button id="btnReset">Rétablir 04h00 · 04h05 · 04h09 · 04h15 · 04h20</button>
+  </div>
+ </section>
+
+ <section>
+  <h2>PARAMÈTRES</h2>
+  <div class="grid">
+   <label class="f">Voix
+    <select id="setGender">
+     <option value="auto">Automatique</option>
+     <option value="male">Masculine</option>
+     <option value="female">Féminine</option>
+    </select>
+   </label>
+   <label class="f">Voix précise (disponibles sur cet appareil)
+    <select id="setVoice"></select>
+   </label>
+   <label class="f">Volume : <b id="volV"></b>
+    <input type="range" id="setVol" min="0" max="100">
+   </label>
+   <label class="f">Vitesse de parole : <b id="rateV"></b>
+    <input type="range" id="setRate" min="50" max="150">
+   </label>
+   <label class="f">Durée du report SNOOZE (minutes)
+    <input type="number" id="setSnooze" min="1" max="60">
+   </label>
+   <label class="f">Répétition du message (secondes)
+    <input type="number" id="setRepeat" min="3" max="120">
+   </label>
+   <label class="f">Arrêt automatique après (minutes)
+    <input type="number" id="setMax" min="1" max="30">
+   </label>
+   <label class="f">Mot d'appel dans les messages
+    <input type="text" id="setName" maxlength="30">
+   </label>
+  </div>
+  <div class="grid" style="margin-top:8px">
+   <label class="chk"><input type="checkbox" id="setAngry"> Mode ANGRY global (messages autoritaires)</label>
+   <label class="chk"><input type="checkbox" id="setBeep"> Sonnerie avant la voix</label>
+   <label class="chk"><input type="checkbox" id="setVib"> Vibration (Android)</label>
+   <label class="chk"><input type="checkbox" id="setWake"> Garder l'écran allumé</label>
+  </div>
+  <label class="f" style="margin-top:10px">Messages ANGRY (un par ligne, utilisés dans l'ordre puis en boucle)
+   <textarea id="setAngryMsgs" rows="5" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);background:#0a0f14;color:var(--white);font:inherit"></textarea>
+  </label>
+  <div class="row" style="margin-top:12px">
+   <button class="btn-g" id="btnTest">Tester la voix</button>
+   <button id="btnExport">Exporter</button>
+   <button class="btn-r" id="btnWipe">Tout effacer</button>
+  </div>
+  <p class="by" style="margin-top:10px">Dans les messages, {heure} est remplacé par l'heure et {nom} par le mot d'appel. Les réglages sont enregistrés automatiquement.</p>
+ </section>
+
+ <footer>JARVIS ALARM – PATRICK EDITION · Mario.S.<br>Gardez cette page ouverte et l'écran allumé : un navigateur ne peut pas sonner quand la page est fermée.</footer>
+</div>
+
+<div id="ring" role="alertdialog" aria-live="assertive">
+ <div class="flash"></div>
+ <div class="rings"><i></i><i></i><i></i><div class="big" id="ringTime">--:--</div></div>
+ <div id="ringLbl"></div>
+ <div id="ringMsg"></div>
+ <div class="row">
+  <button class="btn-r" id="btnStop">STOP</button>
+  <button class="btn-g" id="btnSnooze">SNOOZE</button>
+  <button id="btnRepeat">REPEAT</button>
+ </div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ================= JARVIS ALARM – PATRICK EDITION · Mario.S. ================= */
+const $ = s => document.querySelector(s);
+const KEY = "jarvis-alarm-patrick-v1";
+const pad = n => String(n).padStart(2, "0");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+/* ---------- Données par défaut ---------- */
+const DEFAULT_ANGRY = [
+  "{nom}, debout immédiatement ! Il est {heure}.",
+  "Ceci est un ordre. Levez-vous maintenant !",
+  "Je ne le répéterai pas indéfiniment. Debout, {nom} !",
+  "Plus aucune excuse. Les pieds par terre, tout de suite !",
+  "Il est {heure}. Vous êtes en retard sur votre mission. Debout !"
+];
+const defaultAlarms = () => [
+  {t:"04:00", l:"Réveil", m:"Bonjour {nom}. Il est {heure}. Il est temps de se lever.", on:true, a:false},
+  {t:"04:05", l:"Rappel 1", m:"{nom}, il est {heure}. Ne vous rendormez pas.", on:true, a:false},
+  {t:"04:09", l:"Rappel 2", m:"Il est {heure}. Levez-vous maintenant, {nom}.", on:true, a:false},
+  {t:"04:15", l:"Rappel 3", m:"{nom}, il est {heure}. Dernier avertissement avant le mode strict.", on:true, a:true},
+  {t:"04:20", l:"Rappel final", m:"Il est {heure}. Debout, {nom} ! Plus de retard autorisé.", on:true, a:true}
+].map((a, i) => ({id: "a" + Date.now() + i, ...a}));
+const defaultSettings = () => ({
+  gender:"auto", voice:"", vol:80, rate:100, snooze:5, repeat:12, max:5,
+  name:"Patrick", angry:false, beep:true, vib:true, wake:true,
+  angryMsgs:DEFAULT_ANGRY.join("\n")
+});
+
+let S = {alarms: defaultAlarms(), settings: defaultSettings(), fired: {}};
+let ringing = null, snoozes = [], ringCount = 0, repTimer = null, beepTimer = null, ringStart = 0;
+let audioCtx = null, audioOK = false, voices = [], wakeLock = null;
+
+/* ---------- Sauvegarde LocalStorage ---------- */
+function load(){
+  try{
+    const d = JSON.parse(localStorage.getItem(KEY));
+    if(d && Array.isArray(d.alarms)){ S.alarms = d.alarms; S.settings = {...defaultSettings(), ...d.settings}; S.fired = d.fired || {}; }
+  }catch(e){ console.warn("Lecture impossible", e); }
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }
+  catch(e){ toast("Sauvegarde impossible (stockage bloqué par le navigateur)."); }
+  syncNativeSoon();
+}
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.style.display = "none", 2800);
+}
+
+/* ---------- Horloge et date ---------- */
+function tick(){
+  const n = new Date();
+  $("#clock").innerHTML = `${pad(n.getHours())}<span class="sep">:</span>${pad(n.getMinutes())}<span class="sep">:</span><span class="sec">${pad(n.getSeconds())}</span>`;
+  $("#date").textContent = n.toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long", year:"numeric"});
+  checkAlarms(n);
+  if(n.getSeconds() % 5 === 0) updateNext(n);
+  if(ringing && Date.now() - ringStart > S.settings.max * 60000){ stopRing(); toast("Alarme arrêtée automatiquement."); }
+}
+function updateNext(n = new Date()){
+  const cur = n.getHours() * 60 + n.getMinutes();
+  let best = null, bestD = 1e9;
+  S.alarms.filter(a => a.on).forEach(a => {
+    const [h, m] = a.t.split(":").map(Number);
+    let d = h * 60 + m - cur; if(d <= 0) d += 1440;
+    if(d < bestD){ bestD = d; best = a; }
+  });
+  $("#next").textContent = best ? `Prochaine alarme : ${best.t.replace(":", "h")} (${best.l}) — dans ${Math.floor(bestD/60)} h ${pad(bestD%60)} min` : "Aucune alarme active.";
+  document.querySelectorAll("#rows tr").forEach(r => r.classList.toggle("next", best && r.dataset.id === best.id));
+}
+
+/* ---------- Déclenchement ---------- */
+function checkAlarms(n){
+  const hm = `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+  const day = n.toDateString();
+  const now = Date.now();
+  for(const s of snoozes.slice()){
+    if(now >= s.at){ snoozes = snoozes.filter(x => x !== s); if(!ringing) startRing(s.alarm, true); }
+  }
+  if(n.getSeconds() > 5) return; // tolérance anti-saut d'onglet en arrière-plan
+  for(const a of S.alarms){
+    if(!a.on || a.t !== hm) continue;
+    const k = a.id + day + hm;
+    if(S.fired[k]) continue;
+    S.fired = {[k]: 1, ...Object.fromEntries(Object.entries(S.fired).filter(([x]) => x.includes(day)))};
+    save();
+    if(!ringing) startRing(a);
+  }
+}
+
+/* ---------- Sonnerie, voix ---------- */
+function fill(txt){
+  const n = new Date();
+  return txt.replace(/\{heure\}/g, `${n.getHours()} heures ${n.getMinutes() ? pad(n.getMinutes()) : ""}`.trim())
+            .replace(/\{nom\}/g, S.settings.name || "");
+}
+function currentMessage(){
+  const angry = S.settings.angry || ringing.a;
+  if(angry){
+    const list = S.settings.angryMsgs.split("\n").map(x => x.trim()).filter(Boolean);
+    if(list.length) return fill(list[ringCount % list.length]);
+  }
+  return fill(ringing.m);
+}
+function startRing(a){
+  ringing = a; ringCount = 0; ringStart = Date.now();
+  const angry = S.settings.angry || a.a;
+  $("#ring").classList.add("on"); $("#ring").classList.toggle("angry", angry);
+  const n = new Date();
+  $("#ringTime").textContent = `${pad(n.getHours())}:${pad(n.getMinutes())}`;
+  $("#ringLbl").textContent = a.l + (angry ? " · MODE ANGRY" : "");
+  document.title = "⏰ " + a.l;
+  if(S.settings.vib && navigator.vibrate) navigator.vibrate([500,250,500,250,500]);
+  if(!audioOK) toast("Audio non activé : touchez l'écran pour entendre la voix.");
+  cycle();
+  clearInterval(repTimer);
+  repTimer = setInterval(cycle, Math.max(3, S.settings.repeat) * 1000);
+}
+function cycle(){
+  if(!ringing) return;
+  const msg = currentMessage();
+  $("#ringMsg").textContent = msg;
+  if(S.settings.beep) beep(ringing.a || S.settings.angry);
+  setTimeout(() => speak(msg), S.settings.beep ? 1300 : 0);
+  ringCount++;
+  if(S.settings.vib && navigator.vibrate) navigator.vibrate([400,200,400]);
+}
+function stopRing(){
+  ringing = null; clearInterval(repTimer); clearTimeout(beepTimer);
+  $("#ring").classList.remove("on"); document.title = "JARVIS ALARM – PATRICK EDITION";
+  if("speechSynthesis" in window) speechSynthesis.cancel();
+  if(navigator.vibrate) navigator.vibrate(0);
+  if(NATIVE && TTS) TTS.stop().catch(() => {});
+}
+function snooze(){
+  if(!ringing) return;
+  const a = ringing, min = S.settings.snooze;
+  snoozes.push({alarm: a, at: Date.now() + min * 60000});
+  nativeSnooze(a, min);
+  stopRing(); toast(`Report de ${min} minute(s).`);
+}
+
+/* ---------- Audio ---------- */
+function unlockAudio(){
+  try{
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    audioCtx.resume();
+    if("speechSynthesis" in window){ const u = new SpeechSynthesisUtterance("a"); u.volume = .01; u.lang = "fr-FR"; speechSynthesis.speak(u); }
+    audioOK = true;
+  }catch(e){ audioOK = false; }
+  updateBanner();
+}
+function updateBanner(){
+  const b = $("#audioBanner"), noVoice = !("speechSynthesis" in window);
+  b.classList.toggle("ok", audioOK);
+  $("#audioTxt").textContent = audioOK
+    ? (noVoice ? "Audio actif, mais la synthèse vocale n'est pas disponible : sonnerie seule." : "Audio activé. Le réveil peut sonner et parler tant que cette page reste ouverte.")
+    : "Le navigateur bloque le son tant que vous n'avez pas touché l'écran. Activez l'audio pour que le réveil puisse parler.";
+  $("#btnAudio").textContent = audioOK ? "Tester le son" : "Activer l'audio";
+}
+function beep(angry){
+  if(!audioCtx) return;
+  const vol = S.settings.vol / 100, t0 = audioCtx.currentTime;
+  [0, .25, .5, .75].forEach((d, i) => {
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = angry ? "sawtooth" : "square";
+    o.frequency.value = angry ? (i % 2 ? 620 : 980) : (i % 2 ? 880 : 1175);
+    g.gain.setValueAtTime(0, t0 + d);
+    g.gain.linearRampToValueAtTime(.35 * vol, t0 + d + .02);
+    g.gain.linearRampToValueAtTime(0, t0 + d + .2);
+    o.connect(g).connect(audioCtx.destination); o.start(t0 + d); o.stop(t0 + d + .22);
+  });
+}
+const FEM = /female|femme|woman|amelie|amélie|audrey|aurelie|céline|celine|chloe|denise|eloise|hortense|julie|lea|léa|marie|brigitte|sylvie|vivienne|frc|fra-x-vlf|fr-fr-x-vlf|fr-fr-x-fra|fr-fr-x-frd/i;
+const MAL = /\bmale\b|homme|man\b|thomas|paul|henri|claude|antoine|remy|rémy|nicolas|maxime|fr-fr-x-frb|fr-fr-x-vlb|fr-ca-x-cab|fr-fr-x-frc/i;
+function loadVoices(){
+  if(NATIVE){ nativeLoadVoices(); return; }
+  if(!("speechSynthesis" in window)) return;
+  voices = speechSynthesis.getVoices().filter(v => /^fr/i.test(v.lang));
+  if(!voices.length) voices = speechSynthesis.getVoices();
+  const sel = $("#setVoice");
+  sel.innerHTML = `<option value="">Choix automatique</option>` + voices.map(v => `<option value="${esc(v.voiceURI)}">${esc(v.name)} (${esc(v.lang)})</option>`).join("");
+  sel.value = S.settings.voice;
+}
+function pickVoice(){
+  if(!voices.length) return {voice:null, pitch:1};
+  const g = S.settings.gender;
+  if(S.settings.voice){ const v = voices.find(v => v.voiceURI === S.settings.voice); if(v) return {voice:v, pitch: g==="male"?.8: g==="female"?1.15:1}; }
+  if(g === "male"){ const v = voices.find(v => MAL.test(v.name + v.voiceURI) && !/female/i.test(v.name)); return {voice: v || voices[0], pitch: v ? .9 : .7}; }
+  if(g === "female"){ const v = voices.find(v => FEM.test(v.name + v.voiceURI)); return {voice: v || voices[0], pitch: v ? 1.05 : 1.25}; }
+  return {voice: voices[0], pitch: 1};
+}
+function speak(text){
+  if(NATIVE){ nativeSpeak(text); return true; }
+  if(!("speechSynthesis" in window)) return false;
+  const ss = speechSynthesis;
+  const go = () => {
+    const u = new SpeechSynthesisUtterance(text), {voice, pitch} = pickVoice();
+    if(voice){ u.voice = voice; u.lang = voice.lang; } else u.lang = "fr-FR";
+    const angry = ringing && (S.settings.angry || ringing.a);
+    u.pitch = angry ? Math.max(.1, pitch - .15) : pitch;
+    u.rate = S.settings.rate / 100 * (angry ? 1.1 : 1);
+    u.volume = Math.max(.05, S.settings.vol / 100);
+    u.onerror = e => { if(e.error !== "canceled" && e.error !== "interrupted") toast("Erreur voix : " + e.error + " (essayez une autre voix)"); };
+    ss.resume(); ss.speak(u);
+  };
+  // Chrome Android perd la phrase si speak() suit cancel() immédiatement
+  if(ss.speaking || ss.pending){ ss.cancel(); setTimeout(go, 200); } else go();
+  return true;
+}
+
+/* ---------- Écran allumé ---------- */
+async function wake(){
+  try{
+    if(S.settings.wake && "wakeLock" in navigator && document.visibilityState === "visible" && !wakeLock){
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => wakeLock = null);
+    }else if(!S.settings.wake && wakeLock){ await wakeLock.release(); wakeLock = null; }
+  }catch(e){ wakeLock = null; }
+}
+document.addEventListener("visibilitychange", wake);
+
+/* ---------- Tableau des alarmes ---------- */
+function render(){
+  const body = $("#rows");
+  if(!S.alarms.length){ body.innerHTML = `<tr><td class="empty" colspan="6">Aucune alarme. Touchez « Ajouter une alarme ».</td></tr>`; }
+  else body.innerHTML = S.alarms.slice().sort((a, b) => a.t.localeCompare(b.t)).map(a => `
+   <tr data-id="${a.id}" class="${a.on ? "" : "off"}">
+    <td data-l="Actif"><input type="checkbox" data-f="on" ${a.on ? "checked" : ""} aria-label="Activer"></td>
+    <td data-l="Heure"><input type="time" data-f="t" value="${a.t}" required></td>
+    <td data-l="Libellé"><input type="text" data-f="l" value="${esc(a.l)}" maxlength="30"></td>
+    <td data-l="Message"><input type="text" data-f="m" value="${esc(a.m)}" maxlength="200"></td>
+    <td data-l="Colère"><input type="checkbox" data-f="a" ${a.a ? "checked" : ""} aria-label="Mode colère"></td>
+    <td data-l="Actions"><div class="row"><button class="btn-s" data-act="test">Tester</button><button class="btn-s btn-r" data-act="del">Suppr.</button></div></td>
+   </tr>`).join("");
+  $("#count").textContent = `${S.alarms.filter(a => a.on).length}/${S.alarms.length} actives`;
+  updateNext();
+}
+$("#rows").addEventListener("change", e => {
+  const tr = e.target.closest("tr"), f = e.target.dataset.f; if(!tr || !f) return;
+  const a = S.alarms.find(x => x.id === tr.dataset.id); if(!a) return;
+  a[f] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+  if(f === "t" && !a.t){ a.t = "07:00"; }
+  if(f === "t") S.fired = {};
+  save(); render();
+});
+$("#rows").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if(!b) return;
+  const id = b.closest("tr").dataset.id, a = S.alarms.find(x => x.id === id);
+  if(b.dataset.act === "del"){ S.alarms = S.alarms.filter(x => x.id !== id); save(); render(); toast("Alarme supprimée."); }
+  if(b.dataset.act === "test"){ unlockAudio(); if(!ringing) startRing(a); }
+});
+$("#btnAdd").onclick = () => {
+  const n = new Date(Date.now() + 60000);
+  S.alarms.push({id:"a" + Date.now(), t:`${pad(n.getHours())}:${pad(n.getMinutes())}`, l:"Nouvelle alarme", m:"Il est {heure}. Réveillez-vous, {nom}.", on:true, a:false});
+  save(); render(); toast("Alarme ajoutée dans une minute : modifiez l'heure.");
+};
+$("#btnReset").onclick = () => {
+  if(!confirm("Remplacer toutes les alarmes par les 5 rappels de 04h00 à 04h20 ?")) return;
+  S.alarms = defaultAlarms(); S.fired = {}; save(); render(); toast("Rappels rétablis.");
+};
+
+/* ---------- Paramètres ---------- */
+const binds = [["setGender","gender"],["setVoice","voice"],["setVol","vol","n"],["setRate","rate","n"],["setSnooze","snooze","n"],["setRepeat","repeat","n"],["setMax","max","n"],["setName","name"],["setAngry","angry","b"],["setBeep","beep","b"],["setVib","vib","b"],["setWake","wake","b"],["setAngryMsgs","angryMsgs"]];
+function initSettings(){
+  binds.forEach(([id, k, t]) => {
+    const el = $("#" + id);
+    if(t === "b") el.checked = S.settings[k]; else el.value = S.settings[k];
+    el.addEventListener("input", () => {
+      let v = t === "b" ? el.checked : t === "n" ? Number(el.value) : el.value;
+      if(t === "n" && (!v || v < Number(el.min))) v = Number(el.min);
+      S.settings[k] = v; $("#volV").textContent = S.settings.vol + " %"; $("#rateV").textContent = S.settings.rate + " %";
+      save(); if(k === "wake") wake();
+    });
+  });
+  $("#volV").textContent = S.settings.vol + " %"; $("#rateV").textContent = S.settings.rate + " %";
+}
+$("#btnTest").onclick = () => {
+  unlockAudio(); if(S.settings.beep) beep(S.settings.angry);
+  const m = fill(S.settings.angry ? DEFAULT_ANGRY[0] : "Bonjour {nom}, il est {heure}. Test de la voix.");
+  setTimeout(() => { if(!speak(m)) toast("Synthèse vocale indisponible sur ce navigateur."); }, S.settings.beep ? 1300 : 0);
+};
+$("#btnExport").onclick = () => {
+  const blob = new Blob([JSON.stringify(S, null, 2)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "jarvis-alarm-sauvegarde.json"; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000); toast("Sauvegarde exportée.");
+};
+$("#btnWipe").onclick = () => {
+  if(!confirm("Effacer toutes les alarmes et les réglages ?")) return;
+  localStorage.removeItem(KEY); S = {alarms: defaultAlarms(), settings: defaultSettings(), fired: {}};
+  save(); initSettingsValues(); render(); toast("Données réinitialisées.");
+};
+function initSettingsValues(){ binds.forEach(([id, k, t]) => { const el = $("#" + id); if(t === "b") el.checked = S.settings[k]; else el.value = S.settings[k]; }); $("#volV").textContent = S.settings.vol + " %"; $("#rateV").textContent = S.settings.rate + " %"; loadVoices(); }
+
+/* ---------- Boutons principaux ---------- */
+$("#btnAudio").onclick = () => { unlockAudio(); beep(false); setTimeout(() => { if(!speak("Audio activé. Test de la voix.")) toast("Synthèse vocale indisponible : seule la sonnerie fonctionnera."); }, 1500); };
+$("#btnStop").onclick = stopRing;
+$("#btnSnooze").onclick = snooze;
+$("#btnRepeat").onclick = () => { if(ringing){ cycle(); clearInterval(repTimer); repTimer = setInterval(cycle, Math.max(3, S.settings.repeat) * 1000); } };
+document.addEventListener("pointerdown", () => { if(!audioOK) unlockAudio(); }, {once:true});
+document.addEventListener("keydown", e => { if(!ringing) return; if(e.key === "Escape") stopRing(); });
+
+/* ---------- Couche native Android (Capacitor) ---------- */
+const CAP = window.Capacitor;
+const NATIVE = !!(CAP && CAP.isNativePlatform && CAP.isNativePlatform());
+const LN = NATIVE ? CAP.Plugins.LocalNotifications : null;
+const TTS = NATIVE ? CAP.Plugins.TextToSpeech : null;
+const snoozeIds = new Set();
+let syncTimer = null, exactAsked = false;
+const nid = s => { let h = 7; for(const c of String(s)) h = (h * 31 + c.charCodeAt(0)) % 2000000000; return h || 1; };
+const bodyOf = a => a.m.replace(/\{heure\}/g, a.t.replace(":", " h ")).replace(/\{nom\}/g, S.settings.name || "");
+
+function syncNativeSoon(){ if(!NATIVE) return; clearTimeout(syncTimer); syncTimer = setTimeout(syncNative, 800); }
+async function syncNative(){
+  try{
+    let p = await LN.checkPermissions();
+    if(p.display !== "granted") p = await LN.requestPermissions();
+    if(p.display !== "granted"){ toast("Notifications refusées : les alarmes ne sonneront pas en arrière-plan."); return; }
+    await LN.createChannel({id:"jarvis-alarm", name:"Alarmes JARVIS", description:"Réveil et rappels", importance:5, visibility:1, vibration:true, lights:true});
+    if(!exactAsked){
+      exactAsked = true;
+      try{ const ex = await LN.checkExactNotificationSetting(); if(ex.exact_alarm !== "granted"){ toast("Autorisez « Alarmes et rappels » pour JARVIS."); await LN.changeExactNotificationSetting(); } }catch(e){}
+    }
+    const pend = await LN.getPending();
+    const old = pend.notifications.filter(n => !snoozeIds.has(n.id)).map(n => ({id:n.id}));
+    if(old.length) await LN.cancel({notifications: old});
+    const list = S.alarms.filter(a => a.on).map(a => {
+      const [h, m] = a.t.split(":").map(Number);
+      return {id:nid(a.id), title:"⏰ " + a.l, body:bodyOf(a), channelId:"jarvis-alarm", schedule:{on:{hour:h, minute:m}, allowWhileIdle:true}, extra:{aid:a.id}};
+    });
+    if(list.length) await LN.schedule({notifications: list});
+  }catch(e){ console.warn(e); toast("Planification native impossible : " + (e.message || e)); }
+}
+async function nativeSnooze(a, min){
+  if(!NATIVE) return;
+  try{
+    const id = nid("snooze" + Date.now()); snoozeIds.add(id);
+    await LN.schedule({notifications:[{id, title:"⏰ " + a.l + " (report)", body:bodyOf(a), channelId:"jarvis-alarm", schedule:{at:new Date(Date.now() + min * 60000), allowWhileIdle:true}, extra:{aid:a.id, snooze:true}}]});
+  }catch(e){ console.warn(e); }
+}
+async function nativeLoadVoices(){
+  try{
+    const r = await TTS.getSupportedVoices();
+    const sel = $("#setVoice");
+    sel.innerHTML = `<option value="">Choix automatique</option>` + r.voices.map((v, i) => ({v, i})).filter(x => /^fr/i.test(x.v.lang)).map(x => `<option value="${x.i}">${esc(x.v.name)} (${esc(x.v.lang)})</option>`).join("");
+    sel.value = S.settings.voice;
+  }catch(e){ console.warn(e); }
+}
+async function nativeSpeak(text){
+  try{
+    const g = S.settings.gender, angry = ringing && (S.settings.angry || ringing.a);
+    const pitch = g === "male" ? (angry ? .7 : .85) : g === "female" ? 1.15 : (angry ? .85 : 1);
+    const o = {text, lang:"fr-FR", rate:S.settings.rate / 100 * (angry ? 1.1 : 1), pitch, volume:Math.max(.05, S.settings.vol / 100)};
+    if(S.settings.voice !== "" && !isNaN(Number(S.settings.voice))) o.voice = Number(S.settings.voice);
+    await TTS.stop().catch(() => {});
+    await TTS.speak(o);
+  }catch(e){ toast("Voix native indisponible : " + (e.message || e)); }
+}
+if(NATIVE){
+  audioOK = true;
+  $("#audioBanner").style.display = "none";
+  const open = ev => {
+    const n = (ev && ev.notification) || ev || {}, aid = n.extra && n.extra.aid;
+    const a = S.alarms.find(x => x.id === aid);
+    if(a && !ringing) startRing(a);
+  };
+  LN.addListener("localNotificationReceived", open);
+  LN.addListener("localNotificationActionPerformed", open);
+  setTimeout(syncNative, 1200);
+}
+
+/* ---------- Démarrage ---------- */
+load(); initSettings(); render(); updateBanner(); loadVoices(); wake();
+if("speechSynthesis" in window){ speechSynthesis.onvoiceschanged = loadVoices; [500,1500,3500].forEach(t => setTimeout(() => { if(!voices.length) loadVoices(); }, t)); setTimeout(() => { if(!voices.length) toast("Aucune voix trouvée : installez « Synthèse vocale Google » et une voix française dans les réglages Android."); }, 4500); }
+tick(); setInterval(tick, 1000);
+</script>
+</body>
+</html>

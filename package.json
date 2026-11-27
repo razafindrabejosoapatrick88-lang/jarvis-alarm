@@ -1,0 +1,13 @@
+{
+  "name": "jarvis-alarm-patrick",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JARVIS ALARM – PATRICK EDITION (Mario.S.)",
+  "dependencies": {
+    "@capacitor/android": "latest",
+    "@capacitor/cli": "latest",
+    "@capacitor/core": "latest",
+    "@capacitor/local-notifications": "latest",
+    "@capacitor-community/text-to-speech": "latest"
+  }
+}
